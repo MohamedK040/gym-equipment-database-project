@@ -1,3 +1,6 @@
+CREATE DATABASE IF NOT EXISTS gym_maintenance;
+USE gym_maintenance;
+
 DROP TABLE IF EXISTS service_action;
 DROP TABLE IF EXISTS service_ticket;
 DROP TABLE IF EXISTS fault_report;
@@ -99,61 +102,54 @@ INSERT INTO service_action (ticket_id, action_date, action_type, action_descript
 (2, '2026-03-04', 'Inspection', 'Inspected power supply and display connections'),
 (3, '2026-03-06', 'Inspection', 'Examined treadmill belt and roller alignment');
 
-SELECT * FROM equipment;
-SELECT * FROM equipment_status;
-SELECT * FROM fault_report;
-SELECT * FROM technician;
-SELECT * FROM service_ticket;
-SELECT * FROM service_action;
-
-SELECT 
+SELECT
     fault_report.report_id,
     equipment.name AS equipment_name,
     fault_report.description,
     fault_report.severity,
     fault_report.report_date
 FROM fault_report
-JOIN equipment 
-ON fault_report.equipment_id = equipment.equipment_id;
+JOIN equipment
+    ON fault_report.equipment_id = equipment.equipment_id;
 
-SELECT 
+SELECT
     service_ticket.ticket_id,
     technician.first_name,
     technician.last_name,
     service_ticket.status,
     service_ticket.priority
 FROM service_ticket
-JOIN technician 
-ON service_ticket.technician_id = technician.technician_id;
+JOIN technician
+    ON service_ticket.technician_id = technician.technician_id;
 
-SELECT 
+SELECT
     service_ticket.ticket_id,
     service_action.action_type,
     service_action.action_description,
     service_action.action_date
 FROM service_ticket
 JOIN service_action
-ON service_ticket.ticket_id = service_action.ticket_id;
+    ON service_ticket.ticket_id = service_action.ticket_id
+ORDER BY service_ticket.ticket_id, service_action.action_date;
 
-SELECT 
+SELECT
     equipment.name,
     COUNT(fault_report.report_id) AS total_faults
 FROM equipment
 JOIN fault_report
-ON equipment.equipment_id = fault_report.equipment_id
+    ON equipment.equipment_id = fault_report.equipment_id
 GROUP BY equipment.equipment_id, equipment.name
 ORDER BY total_faults DESC;
 
-SELECT 
+SELECT
     technician.first_name,
     technician.last_name,
     COUNT(service_ticket.ticket_id) AS total_tickets
 FROM technician
-JOIN service_ticket
-ON technician.technician_id = service_ticket.technician_id
-GROUP BY technician.technician_id, technician.first_name, technician.last_name;
-
-
+LEFT JOIN service_ticket
+    ON technician.technician_id = service_ticket.technician_id
+GROUP BY technician.technician_id, technician.first_name, technician.last_name
+ORDER BY total_tickets DESC;
 
 DROP TRIGGER IF EXISTS after_service_ticket_closed;
 
@@ -165,7 +161,7 @@ FOR EACH ROW
 BEGIN
     IF NEW.status = 'Closed' AND OLD.status <> 'Closed' THEN
         INSERT INTO equipment_status (equipment_id, status, changed_at, note)
-        SELECT 
+        SELECT
             fault_report.equipment_id,
             'Operational',
             NOW(),
@@ -177,13 +173,7 @@ END$$
 
 DELIMITER ;
 
-UPDATE service_ticket
-SET status = 'Closed'
-WHERE ticket_id = 2;
-
-SELECT * FROM equipment_status;
-
-
+UPDATE service_ticket SET status = 'Closed' WHERE ticket_id = 2;
 
 DROP PROCEDURE IF EXISTS create_service_ticket;
 
@@ -202,5 +192,3 @@ END$$
 DELIMITER ;
 
 CALL create_service_ticket(3, 3, 'Low');
-
-SELECT * FROM service_ticket;
